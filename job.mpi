@@ -1,0 +1,23 @@
+#!/bin/bash
+#----------------------------------------------------------
+# Job name
+#PBS -N mpi_16
+
+# Name of stdout output file
+#PBS -o mpi.out
+
+# Run time (hh:mm:ss) - 0.25 hours PBS -l walltime=01:30:00
+#----------------------------------------------------------
+
+#PBS -l nodes=compute-0-3:ppn=16+compute-0-2:ppn=16
+
+
+# Change to submission directory
+cd $PBS_O_WORKDIR
+
+cat $PBS_NODEFILE
+
+echo $PBS_WALLTIME
+
+# Launch MPI-based executable
+time /opt/ohpc/pub/mpi/openmpi4-gnu12/4.1.4/bin/mpiexec --hostfile $PBS_NODEFILE /home/thiago_esterci/gitHub/estudo-de-caso-poisson-2d-Esterci/mpi_stencil 
