@@ -18,7 +18,7 @@ void ZeraVector(double *uold, double *unew, double *f, int ndof)
 int main(int argc, char **argv)
 {
   AppCtx app;
-  MPI_Request reqs[4]; // required variable for non-blocking calls
+  // MPI_Request reqs[4]; // required variable for non-blocking calls
   MPI_Status stats[4]; // required variable for Waitall routine
   int nreqs = 0;
   AppInit(&app, argc, argv);
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
   int niters = app.niters;   // number of iterations
   int ndof = app.ndof;       // number of degrees of freedom
   int local_n = app.local_n; // numero de pontos em cada processo
-  
+
   // Para a implementação paralela
   // Cada processo deve ter uma cópia local de uold e unew
   double *uold = (double *)malloc(ndof * sizeof(double)); //
@@ -74,68 +74,64 @@ int main(int argc, char **argv)
   double h = app.h;
   double h2 = h * h;
   double error = 0.0, total_error = 0.0;
+  double local_error = 0.0;
+  int j = 0;
 
-  // inicia time de threads
-
-  #pragma omp parallel num_threads(app.size)
+#pragma omp parallel num_threads(2) default(none) \
+    shared(ompi_mpi_comm_world, unew, niters, nreqs, app, stats, tag1, tag2, n, uold, local_n, ompi_mpi_double, local_error, f, h2, ompi_mpi_op_sum,total_error,tmp,error) private(j)
   {
-    int my_rank = omp_get_thread_num();
 
-
-
-  for (int iter = 0; iter < niters; ++iter)
-  {
-    nreqs = 0;
-    // Cada processo deve trocar as bordas com seus vizinhos
-    double local_error = 0.0;
-
-    if (app.neighbors[DOWN] != -1)
+    for (int iter = 0; iter < niters; ++iter)
     {
-      MPI_Isend(&uold[ind(local_n, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
-                tag1, MPI_COMM_WORLD, &reqs[nreqs++]);
+      nreqs = 0;
+      // Cada processo deve trocar as bordas com seus vizinhos
 
-      MPI_Irecv(&uold[ind(local_n + 1, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
-                tag2, MPI_COMM_WORLD, &reqs[nreqs++]);
-    }
-
-    if (app.neighbors[UP] != -1)
-    {
-      MPI_Isend(&uold[ind(1, 1)], n, MPI_DOUBLE, app.neighbors[UP],
-                tag2, MPI_COMM_WORLD, &reqs[nreqs++]);
-
-      MPI_Irecv(&uold[ind(0, 1)], n, MPI_DOUBLE, app.neighbors[UP],
-                tag1, MPI_COMM_WORLD, &reqs[nreqs++]);
-    }
-
-    MPI_Waitall(nreqs, reqs, stats);
-
-    // Calculo do Stencil
-    for (int i = 1; i <= local_n; ++i)
-    {
-      for (int j = 1; j <= n; ++j)
+      if (app.neighbors[DOWN] != -1)
       {
-        unew[ind(i, j)] = 0.25 * (uold[ind(i - 1, j)] + uold[ind(i + 1, j)] +
-                                  uold[ind(i, j - 1)] + uold[ind(i, j + 1)] +
-                                  h2 * f[ind(i, j)]);
-        local_error += (unew[ind(i, j)] - uold[ind(i, j)]) * (unew[ind(i, j)] - uold[ind(i, j)]);
+        MPI_Sendrecv(&uold[ind(local_n, 1)], n, MPI_DOUBLE, app.neighbors[DOWN], tag1,
+                     &uold[ind(local_n + 1, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
+                     tag2, MPI_COMM_WORLD, &stats[nreqs++]);
       }
+
+      if (app.neighbors[UP] != -1)
+      {
+        MPI_Sendrecv(&uold[ind(1, 1)], n, MPI_DOUBLE, app.neighbors[UP], tag2,
+                     &uold[ind(0, 1)], n, MPI_DOUBLE, app.neighbors[UP], tag1,
+                     MPI_COMM_WORLD, &stats[nreqs++]);
+      }
+
+      // MPI_Waitall(nreqs, reqs, stats);
+
+      local_error = 0;
+
+      // Calculo do Stencil
+      for (int i = 1; i <= local_n; ++i)
+      {
+#pragma omp for reduction(+ : local_error) schedule(static)
+        for (j = 1; j <= n; ++j)
+        {
+          unew[ind(i, j)] = 0.25 * (uold[ind(i - 1, j)] + uold[ind(i + 1, j)] +
+                                    uold[ind(i, j - 1)] + uold[ind(i, j + 1)] +
+                                    h2 * f[ind(i, j)]);
+          local_error += (unew[ind(i, j)] - uold[ind(i, j)]) * (unew[ind(i, j)] - uold[ind(i, j)]);
+        }
+      }
+
+      MPI_Allreduce(&local_error, &total_error, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      error = sqrt(total_error);
+
+      // if (app.rank == 0)
+      //   printf("iter: %d   erro: %8.8e\n", iter, error);
+
+      // if (error < app.tol)
+      //   break;
+
+      tmp = unew;
+      unew = uold;
+      uold = tmp; // swap arrays
     }
-
-    MPI_Allreduce(&local_error, &total_error, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-    error = sqrt(total_error);
-
-    // if (app.rank == 0)
-    //   printf("iter: %d   erro: %8.8e\n", iter, error);
-
-    if (error < app.tol)
-      break;
-
-    tmp = unew;
-    unew = uold;
-    uold = tmp; // swap arrays
   }
-
   // if (app.rank == 0)
   //   printf("erro: %8.8e\n", total_error);
 

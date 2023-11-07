@@ -18,7 +18,7 @@ void ZeraVector(double *uold, double *unew, double *f, int ndof)
 int main(int argc, char **argv)
 {
   AppCtx app;
-  MPI_Request reqs[4]; // required variable for non-blocking calls
+  //MPI_Request reqs[4]; // required variable for non-blocking calls
   MPI_Status stats[4]; // required variable for Waitall routine
   int nreqs = 0;
   AppInit(&app, argc, argv);
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
   int niters = app.niters;   // number of iterations
   int ndof = app.ndof;       // number of degrees of freedom
   int local_n = app.local_n; // numero de pontos em cada processo
-  
+
   // Para a implementação paralela
   // Cada processo deve ter uma cópia local de uold e unew
   double *uold = (double *)malloc(ndof * sizeof(double)); //
@@ -83,23 +83,19 @@ int main(int argc, char **argv)
 
     if (app.neighbors[DOWN] != -1)
     {
-      MPI_Isend(&uold[ind(local_n, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
-                tag1, MPI_COMM_WORLD, &reqs[nreqs++]);
-
-      MPI_Irecv(&uold[ind(local_n + 1, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
-                tag2, MPI_COMM_WORLD, &reqs[nreqs++]);
+      MPI_Sendrecv(&uold[ind(local_n, 1)], n, MPI_DOUBLE, app.neighbors[DOWN], tag1,
+                   &uold[ind(local_n + 1, 1)], n, MPI_DOUBLE, app.neighbors[DOWN],
+                   tag2, MPI_COMM_WORLD, &stats[nreqs++]);
     }
 
     if (app.neighbors[UP] != -1)
     {
-      MPI_Isend(&uold[ind(1, 1)], n, MPI_DOUBLE, app.neighbors[UP],
-                tag2, MPI_COMM_WORLD, &reqs[nreqs++]);
-
-      MPI_Irecv(&uold[ind(0, 1)], n, MPI_DOUBLE, app.neighbors[UP],
-                tag1, MPI_COMM_WORLD, &reqs[nreqs++]);
+      MPI_Sendrecv(&uold[ind(1, 1)], n, MPI_DOUBLE, app.neighbors[UP], tag2,
+               &uold[ind(0, 1)], n, MPI_DOUBLE, app.neighbors[UP], tag1, 
+               MPI_COMM_WORLD, &stats[nreqs++]);
     }
 
-    MPI_Waitall(nreqs, reqs, stats);
+    // MPI_Waitall(nreqs, reqs, stats);
 
     // Calculo do Stencil
     for (int i = 1; i <= local_n; ++i)
@@ -131,7 +127,7 @@ int main(int argc, char **argv)
   // if (app.rank == 0)
   //   printf("erro: %8.8e\n", total_error);
 
-  save_array(unew, &app);
+  // save_array(unew, &app);
 
   free(uold);
   free(unew);

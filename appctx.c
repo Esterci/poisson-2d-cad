@@ -21,12 +21,13 @@ void AppInit(AppCtx *app, int argc, char *argv[])
 {
 
 #ifdef HAVE_MPI
+    printf("iniciou mpi\n");
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &app->rank);
     MPI_Comm_size(MPI_COMM_WORLD, &app->size);
 #else
 #ifdef HAVE_OMP
-    app->size = strtol(argv[1], NULL, 10);
+    app->size = 2;
 #else
     app->rank = 0;
     app->size = 1;
@@ -39,7 +40,7 @@ void AppInit(AppCtx *app, int argc, char *argv[])
 void AppGetParameters(AppCtx *app, int argc, char *argv[])
 {
     // valores default
-    app->global_n = 5000;
+    app->global_n = 250;
     app->niters = 1000;
     app->energy = 1000;
     app->L = 1.0;
@@ -87,8 +88,14 @@ void AppGetParameters(AppCtx *app, int argc, char *argv[])
     // calcula o tamanho local do grid
     app->local_n = app->global_n / app->size;
 #else
+#ifdef HAVE_HB
+    printf("foi");
+    // calcula o tamanho local do grid
+    app->local_n = app->global_n / app->size;
+#else
     // calcula o tamanho local do grid
     app->local_n = app->global_n;
+#endif
 #endif
     // calcula o número de graus de liberdade
     app->ndof = (app->local_n + 2) * (app->global_n + 2);

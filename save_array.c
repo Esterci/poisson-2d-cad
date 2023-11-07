@@ -108,16 +108,16 @@ void save_array_csv(double *array, AppCtx *app)
     FILE *fp;
 
 #ifdef HAVE_MPI
-#ifdef OMP
-    sprintf(filename, "matrizes_resultantes/array_hb.%d.csv", rank);
-#else
     sprintf(filename, "matrizes_resultantes/array_mpi.%d.csv", rank);
-#endif
 #else
-#ifdef OMP
+#ifdef HAVE_OMP
     sprintf(filename, "matrizes_resultantes/array_omp.%d.csv", rank);
 #else
+#ifdef HAVE_HB
+    sprintf(filename, "matrizes_resultantes/array_hb.%d.csv", rank);
+#else
     sprintf(filename, "matrizes_resultantes/array_serial.%d.csv", rank);
+#endif
 #endif
 #endif
 

@@ -1,4 +1,8 @@
 
 matrizes_resultantes/array_mpi_2.csv
 *.csv
-mpi_result/*.
+/mpi_result/*
+/omp_result/*
+/serial_result/*
+serial_result/serial.e13022
+*.o12013
