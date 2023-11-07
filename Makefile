@@ -1,6 +1,6 @@
 CC   = gcc
 MPICC=mpicc
-CFLAGS=-g -O
+CFLAGS=-g -O3
 LDFLAGS=-lm
 OBJS=*.o
 BINS= serial_stencil 

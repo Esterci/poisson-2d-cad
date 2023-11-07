@@ -62,7 +62,11 @@ void save_array_vti(double *array, AppCtx *app)
     int y2 = n + 1;
 
 #ifdef HAVE_MPI
+#ifdef OMP
+    sprintf(filename, "matrizes_resultantes/array_hb.%d.vti", rank);
+#else
     sprintf(filename, "matrizes_resultantes/array_mpi.%d.vti", rank);
+#endif
 #else
 #ifdef OMP
     sprintf(filename, "matrizes_resultantes/array_omp.%d.vti", rank);
@@ -97,18 +101,23 @@ void save_array_csv(double *array, AppCtx *app)
 {
     // save array in csv file
 
+    int rank = app->rank;
     int local_n = app->local_n;
     int global_n = app->global_n;
     char filename[256];
     FILE *fp;
 
 #ifdef HAVE_MPI
-    sprintf(filename, "matrizes_resultantes/array_mpi_%d.csv", app->rank);
+#ifdef OMP
+    sprintf(filename, "matrizes_resultantes/array_hb.%d.csv", rank);
 #else
-#ifdef HAVE_OMP
-    sprintf(filename, "matrizes_resultantes/array_omp.csv");
+    sprintf(filename, "matrizes_resultantes/array_mpi.%d.csv", rank);
+#endif
 #else
-    sprintf(filename, "matrizes_resultantes/array_serial.csv");
+#ifdef OMP
+    sprintf(filename, "matrizes_resultantes/array_omp.%d.csv", rank);
+#else
+    sprintf(filename, "matrizes_resultantes/array_serial.%d.csv", rank);
 #endif
 #endif
 
