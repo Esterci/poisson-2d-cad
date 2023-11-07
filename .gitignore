@@ -1,4 +1,4 @@
 
 matrizes_resultantes/array_mpi_2.csv
 *.csv
-mpi_result/*
+mpi_result/*.
